@@ -1,0 +1,9 @@
+secrets.py
+__pycache__
+FinalPlantDB.sqlite
+phm_us_zipcode.csv
+trefle_cache.json
+final_exploration.py
+filter_db.py
+templates
+static
