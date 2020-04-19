@@ -7,9 +7,12 @@ import requests
 
 TREFLE_BASEURL = 'https://trefle.io/api/plants/'
 TREFLE_KEY = secrets.TREFLE_API_KEY
+
+WIKIMEDIA_BASEURL = 'https://en.wikipedia.org/w/api.php'
+WIKIMEDIA_PARAMS = {'action': 'query', 'format': 'json', 'titles': '', 'prop': 'pageimages', 'piprop': 'original'}
 CACHE_FILENAME = 'trefle_cache.json'
 CACHE_DICT = {}
-TEMP_PARAMS = {'duration': 'Perennial', 'palatable_browse_animal': 'Low', 'complete_data': 'true', 'growth_habit': 'Tree','temperature_minimum_deg_f': '-12'}
+TEMP_PARAMS = {'duration': 'Perennial', 'palatable_browse_animal': 'Low', 'complete_data': 'true', 'growth_habit': 'Tree'}
 
 
 
@@ -68,7 +71,7 @@ def save_cache(cache_dict):
     fw.write(dumped_json_cache)
     fw.close() 
 
-def make_request(baseurl):
+def make_request(baseurl, api_key):
     '''Make a request to the Web API using the baseurl and params
     
     Parameters
@@ -84,11 +87,15 @@ def make_request(baseurl):
         the data returned from making the request in the form of 
         a dictionary
     '''
-    endpoint = baseurl + 'token=' + TREFLE_KEY
+    if api_key == None:
+        endpoint = baseurl
+    else:
+
+        endpoint = baseurl + 'token=' + api_key
     response = requests.get(endpoint)
     return response.json()
 
-def make_request_with_cache(baseurl, params):
+def make_request_with_cache(baseurl, api_key, params):
     '''Check the cache for a saved result for this baseurl+params:values
     combo. If the result is found, return it. Otherwise send a new 
     request, save it, then return it.
@@ -112,14 +119,14 @@ def make_request_with_cache(baseurl, params):
     '''
     request_key = construct_unique_key(baseurl, params)
     if request_key in CACHE_DICT.keys():
-        print("cache hit!")
+        #print("cache hit!")
         return CACHE_DICT[request_key]
     else:
-        print("cache miss!")
-        CACHE_DICT[request_key] = make_request(request_key)
+        #print("cache miss!")
+        CACHE_DICT[request_key] = make_request(request_key, api_key)
         save_cache(CACHE_DICT)
         return CACHE_DICT[request_key]
-    print(CACHE_DICT)
+
 
 def construct_unique_key(baseurl, params):
     ''' constructs a key that is guaranteed to uniquely and 
@@ -137,6 +144,7 @@ def construct_unique_key(baseurl, params):
     string
         the unique key as a string
     '''
+    unique_key = ''
     try :
         if params.isdigit():
             unique_key = baseurl + params +'?'
@@ -148,26 +156,40 @@ def construct_unique_key(baseurl, params):
             unique_key = baseurl + '?' + connector.join(param_strings) + '&'
     return unique_key
 
-
+def get_wiki_image(image_info):
+    """TODO: FINISH DOCSTRING
+    """
+    image = str(image_info).split('{')
+    image = image[5].split(' ')
+    image = image[1].strip(",")
+    image = image.strip("'")
+    return image
 
 def sort_trefle_json(trefle_results):
+    """TODO: FINISH DOCSTRING
+    """
     plant_list = []
     for result in trefle_results:
         plant_dict = {}
         new_endpoint = result['link'].split('/')[-1]
-
-        plant_link = make_request_with_cache(TREFLE_BASEURL, new_endpoint)
+        plant_link = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, new_endpoint)
+        
+        name = plant_link['common_name']
+        sci_name = plant_link['scientific_name']
+        image_endpoint = WIKIMEDIA_PARAMS
         try:
-            image = plant_link['images'][0]['url'].split('_')
-            if 'map' in image:
-                try:
-                    image = plant_link['images'][1]['url']
-                except:
-                    image = None
+            image_endpoint['titles'] = sci_name
+            image_info = make_request_with_cache(WIKIMEDIA_BASEURL, api_key=None, params=image_endpoint)
+            image_return = get_wiki_image(image_info)
+            if 'map' in image_return.split('_'):
+                image = None
+            else:
+                image = image_return
         except:
             image = None
-        name = plant_link['common_name']
+
         duration = plant_link['duration']
+        
         shade = plant_link['main_species']['growth']['shade_tolerance']
         bloom_period = plant_link['main_species']['seed']['bloom_period']
         zone_temp = plant_link['main_species']['growth']['temperature_minimum']['deg_f']
@@ -184,18 +206,18 @@ def sort_trefle_json(trefle_results):
             pass
     return plant_list
 
-#potential search terms and keys
+
 
 CACHE_DICT = open_cache()
 
 params = TEMP_PARAMS
-results = make_request_with_cache(TREFLE_BASEURL, TEMP_PARAMS)
+results = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, TEMP_PARAMS)
 plant_list = sort_trefle_json(results)
 result_count = len(plant_list)
 for plant in plant_list:
     for key in plant.keys():
         for item in plant[key]:
-            print(item)
+            print(item) #for debugging
 
 print(f'You have {result_count} plants to choose from!')
 
