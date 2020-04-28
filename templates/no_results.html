@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta charset="utf8"/>
+    <title>Plant Search Results</title>
+    <script>
+        function goBack() {
+          window.history.back()
+        }
+        </script>
+</head>
+
+<body>
+    <h1>I'm sorry, but it looks like there are no plants fitting those criteria.
+        Please try again!
+    </h1>
+    <br/>
+    <button class='submit-css' onclick="goBack()">Back to Form</button>
+    <br/>
+    <br/>
+    <div class="footer">
+        <br/>
+        This App was made by Erin Murray in 2020 for SI507.
+        <br/>
+        <br/>
+    </div>
+</body>
+</html>

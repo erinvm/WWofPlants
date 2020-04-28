@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel='shortcut icon' type='image/x-icon' href='static\images\favicon.ico' />
+    <meta charset="utf8"/>
+    <title>Plant Search Form</title>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome to the Wonderful World of Plants!</h1>
+    </div>
+    <div class= "subtitle">
+        <h2>What kind of plants can I find for you?</h2>
+    </div>
+
+    <form action='/results' method='POST'>
+        <table>
+            <tr><th>
+            <label for="zipcode">Want to know your USDA growing zone? Enter your zipcode below (optional).</label>
+            <input type="text" id="zipcode" name="zipcode" maxlength='5'>
+            </th></tr>
+            <tr><th>
+                <label for="plant_type">What kind of plant are you looking for?</label>
+                    <select class='select-css' name='plant_type'>
+                        <option value='None'>All plants</option>
+                        <option value='Tree'>Trees</option>
+                        <option value='Shrub'>Shrubs</option>
+                        <option value='Forb/herb'>Plants</option>
+                        <option value='Graminoid'>Grasses</option>
+                        <option value='Vine'>Vines</option>
+            </th></tr>
+            <tr><th>
+                <label for="bloom_time">When would you like your plants to bloom?</label>
+                    <select class='select-css' name='bloom_time'>
+                        <option value='None'>All Seasons</option>
+                        <option value='Spring'>Spring</option>
+                        <option value='Summer'>Summer</option>
+                        <option value='Fall'>Fall</option>
+                        <option value='Winter'>Winter</option>
+            </th></tr>
+
+            <tr><th>
+                <label for="sun">How much sun do you get? </label><br/>
+                    <input type='radio' name='sun' 
+                        value='Intolerant' checked='checked'/> Full Sun<br/>
+                    <input type='radio' name='sun' 
+                        value='Intermediate'/> Part Sun/Shade <br/>
+                    <input type='radio' name='sun' 
+                        value='Tolerant'/> Full Shade <br/>
+                    <input type='radio' name='sun' 
+                        value='None'/> All <br/>
+            </th></tr>
+
+            <tr><th>
+            <label for="deer">Should your plants be resistant to deer? </label><br/>
+                <input type='radio' name='deer' 
+                        value='Low' checked='checked'/> Yes!<br/>
+                <input type='radio' name='deer' 
+                        value='None'/> I don't have deer. <br/>
+            </th></tr>
+            <tr>
+                <th>
+                    <input type='submit' class='submit-css' value='Get Plants!'/>
+                </th>
+            </tr>
+
+    </table>
+    <br/>
+    <br/>
+    <div class="footer">
+        <br/>
+        This App was made by Erin Murray in 2020 for SI507.
+        <br/>
+        <br/>
+    </div>
+    </form>
+
+</body>
+</html>

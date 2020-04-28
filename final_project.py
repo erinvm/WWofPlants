@@ -4,6 +4,10 @@
 import secrets
 import json
 import requests
+import sqlite3
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
 
 TREFLE_BASEURL = 'https://trefle.io/api/plants/'
 TREFLE_KEY = secrets.TREFLE_API_KEY
@@ -13,9 +17,9 @@ WIKIMEDIA_PARAMS = {'action': 'query', 'format': 'json', 'titles': '', 'prop': '
 CACHE_FILENAME = 'trefle_cache.json'
 CACHE_DICT = {}
 TEMP_PARAMS = {'duration': 'Perennial', 'palatable_browse_animal': 'Low', 'complete_data': 'true', 'growth_habit': 'Tree'}
+SEARCH_PARAMS = []
 
-
-
+"""
 shade_tolerance = ['Tolerant', 'Intermediate', 'Intolerant']
 bloom_period = [
                 'Spring', 'Early Spring', 'Mid Spring','Late Spring', 
@@ -31,6 +35,38 @@ mature_height = 'float'
 palatable_browse_animal = ['Low', 'Moderate', 'High']
 has_image = True
 native_status = ''
+"""
+
+#Functions go here:
+def get_zone_from_zip(zipcode):
+    conn = sqlite3.connect('FinalPlantDB.sqlite')
+    cur = conn.cursor()
+
+    #TODO: CODE QUERY HERE
+    query = f'''
+            SELECT Zone
+            FROM USDAZones
+            WHERE Zipcode = {zipcode}
+            '''
+
+    results = cur.execute(query).fetchall()
+    conn.close()
+    return results[0][0]
+
+def get_zone_from_low(low_min):
+    conn = sqlite3.connect('FinalPlantDB.sqlite')
+    cur = conn.cursor()
+
+    #TODO: CODE QUERY HERE
+    query = f'''
+            SELECT Zone
+            FROM USDAZones
+            WHERE LowMin = {low_min}
+            '''
+
+    results = cur.execute(query).fetchall()
+    conn.close()
+    return results[0][0]
 
 def open_cache():
     ''' Opens the cache file if it exists and loads the JSON into
@@ -145,7 +181,7 @@ def construct_unique_key(baseurl, params):
         the unique key as a string
     '''
     unique_key = ''
-    try :
+    try:
         if params.isdigit():
             unique_key = baseurl + params +'?'
     except:
@@ -170,54 +206,143 @@ def sort_trefle_json(trefle_results):
     """
     plant_list = []
     for result in trefle_results:
-        plant_dict = {}
-        new_endpoint = result['link'].split('/')[-1]
-        plant_link = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, new_endpoint)
-        
-        name = plant_link['common_name']
-        sci_name = plant_link['scientific_name']
-        image_endpoint = WIKIMEDIA_PARAMS
         try:
-            image_endpoint['titles'] = sci_name
-            image_info = make_request_with_cache(WIKIMEDIA_BASEURL, api_key=None, params=image_endpoint)
-            image_return = get_wiki_image(image_info)
-            if 'map' in image_return.split('_'):
-                image = None
+            plant_dict = {}
+            new_endpoint = str(result['id'])
+
+            plant_link = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, new_endpoint)
+            plant_dict['name'] = plant_link['common_name']
+            plant_dict['sci_name'] = plant_link['scientific_name']
+            image_endpoint = WIKIMEDIA_PARAMS
+        
+            image_endpoint['titles'] = plant_dict['sci_name']
+            try:
+                image_info = make_request_with_cache(WIKIMEDIA_BASEURL, api_key=None, params=image_endpoint)
+
+                image_return = get_wiki_image(image_info)
+                if 'map' in image_return.split('_'):
+                    plant_dict['image'] = False
+                else:
+                    plant_dict['image'] = image_return
+            except:
+                plant_dict['image'] = False
+            plant_dict['duration'] = plant_link['duration']
+            
+            if plant_link['main_species']['growth']['shade_tolerance'] == 'Tolerant':
+                plant_dict['shade'] = 'Full Shade'
+            elif plant_link['main_species']['growth']['shade_tolerance'] == 'Intermediate':
+                plant_dict['shade'] = 'Part Sun/Shade'
             else:
-                image = image_return
-        except:
-            image = None
+                plant_dict['shade'] = 'Full Sun'
+            plant_dict['bloom_period'] = plant_link['main_species']['seed']['bloom_period']
+            low_temp = (plant_link['main_species']['growth']['temperature_minimum']['deg_f'])
+            try:
+                low_temp = 5 * round(low_temp/5)
+                if low_temp >= -40:
+                    low_zone = get_zone_from_low(low_temp)
+                    try:
+                        max_zone = get_zone_from_low(low_temp + 40)
+                    except:
+                        max_zone = '11b'
+                    plant_dict['zone'] = f'{low_zone} - {max_zone}'
+                else: plant_dict['zone'] = f'3a - 7a'
+            except:
+                plant_dict['zone'] = 'Not Available'
+            plant_dict['zone'] = f'{low_zone} - {max_zone}'
+            growth_habit = plant_link['main_species']['specifications']['growth_habit']
+            if growth_habit == 'Graminoid':
+                plant_dict['shape'] = 'Grass'
+            elif growth_habit == 'Forb/herb':
+                plant_dict['shape'] = 'Plant'
+            else:
+                plant_dict['shape'] = growth_habit
+            plant_height = plant_link['main_species']['specifications']['mature_height']['ft']
+            
+            try:
+                if plant_height < 1:
+                    height = round(plant_height * 12)
+                    plant_dict['height'] = f'{height} in.'
+                else:
+                    height = round(plant_height)
+                    plant_dict['height'] = f'{height} ft.'
+            except:
+                plant_dict['height'] = 'Unrecorded'
+            native_code = plant_link['main_species']['native_status']
+            #native_code = native_code.replace('(', ':')
+            #print(plant_dict['common_name'])
+            #print(type(native_code))
+            #native_code = native_code.split(')')
+            #print(native_code)
 
-        duration = plant_link['duration']
-        
-        shade = plant_link['main_species']['growth']['shade_tolerance']
-        bloom_period = plant_link['main_species']['seed']['bloom_period']
-        zone_temp = plant_link['main_species']['growth']['temperature_minimum']['deg_f']
-        shape = plant_link['main_species']['specifications']['growth_habit']
-        height = plant_link['main_species']['specifications']['mature_height']['ft']
-        native = plant_link['main_species']['native_status']
-        deer = plant_link['main_species']['products']['palatable_browse_animal']
+            plant_dict['native'] = native_code
+            if plant_link['main_species']['products']['palatable_browse_animal'] == 'Low':
+                plant_dict['deer'] = 'Yes'
+            else:
+                plant_dict['deer'] = 'No'
 
-        plant_dict[name] = [name, zone_temp, duration, shape, bloom_period, shade, native, deer, height, image]
-        try:
-            name.title()
             plant_list.append(plant_dict)
+
         except:
+            print('Oh no! An error!')
             pass
     return plant_list
 
+#App routes go here:
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/results', methods=['POST'])
+def results():
+    params_dict = {'complete_data': 'true', 'duration': 'Perennial',}
+    if request.form['zipcode'].isdigit() and len(request.form['zipcode']) >= 4:
+        zipcode = request.form['zipcode']
+        user_zone = get_zone_from_zip(zipcode)
+    else:
+        user_zone = False
+    if request.form['plant_type'] == 'None':
+        pass
+    else:
+        params_dict['growth_habit'] = request.form['plant_type']
+    if request.form['bloom_time'] == 'None':
+        pass
+    else:
+        params_dict['bloom_period'] = request.form['bloom_time']
+    if request.form['sun'] == 'None':
+        pass
+    else:
+        params_dict['shade_tolerance'] = request.form['sun']
+    #params_dict['native_status'] = request.form['native']
+    if request.form['deer'] == 'Low':
+        params_dict['palatable_browse_animal'] = request.form['deer']
+    else:
+        pass
+    results = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, params_dict)
+    if results == []:
+        return render_template('no_results.html')
+    else:
+        plant_list = sort_trefle_json(results)
+        len_list = len(plant_list)
+        print(len_list)
+        return render_template('results.html', plant_list=plant_list, zone=user_zone, length=len_list)
 
 
-CACHE_DICT = open_cache()
+if __name__=='__main__':
 
-params = TEMP_PARAMS
-results = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, TEMP_PARAMS)
-plant_list = sort_trefle_json(results)
-result_count = len(plant_list)
-for plant in plant_list:
-    for key in plant.keys():
-        for item in plant[key]:
-            print(item) #for debugging
+    app.run(debug=True)
 
-print(f'You have {result_count} plants to choose from!')
+    CACHE_DICT = open_cache()
+    tempo_params = {
+        "complete_data": "true", 
+        "duration": "Perennial", 
+        "shade_tolerance": "Intolerant"
+        }
+    results = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, tempo_params)
+    plant_list = sort_trefle_json(results)
+    result_count = len(plant_list)
+    for plant in plant_list:
+        for key in plant.keys():
+            for item in plant[key]:
+                print(item) #for debugging
 
+    print(f'You have {result_count} plants to choose from!')
