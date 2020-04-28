@@ -1,10 +1,9 @@
 # The Wonderful World of Plants
----
 
-This app was developed to support users in their garden decision making process when selecting appropriate plants for their environment. The app allows users to input a variety of variables that may be desirable attributes or necessary limitations of potential plants. Thy are then given a list of (no more than 30 items at this time) of plants that meet their inputs.
+This app was developed to support users in their garden decision making process when selecting appropriate plants for their environment. The app allows users to input a variety of variables that may be desirable attributes or necessary limitations of potential plants. They are then given a list (no more than 30 items at this time) of plants that meet their inputs.
 
 ## Getting Started
-Besides a secrets document for a unique Trefle API key, and the python packages listed below, all necessary files can be found within this Git repository.
+Besides a secrets document for a unique Trefle API key, and the python packages listed below, all necessary files can be found within this Git repository. Running 'final_project.py' will allow access to the app at 'http://127.0.0.1:5000/' your web browser.
 
 ### Prerequisites: 
 Users of this app will need the following packages
@@ -18,7 +17,7 @@ A Trefle API key can be obtained [Here](https://trefle.io/). Import this into th
 This app was built using Flask to handle the UI.
 
 ## Authors
-Erin Murray 2020
+Erin Murray
 
 ## Acknowledgements:
 

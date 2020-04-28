@@ -16,33 +16,39 @@ WIKIMEDIA_BASEURL = 'https://en.wikipedia.org/w/api.php'
 WIKIMEDIA_PARAMS = {'action': 'query', 'format': 'json', 'titles': '', 'prop': 'pageimages', 'piprop': 'original'}
 CACHE_FILENAME = 'trefle_cache.json'
 CACHE_DICT = {}
-TEMP_PARAMS = {'duration': 'Perennial', 'palatable_browse_animal': 'Low', 'complete_data': 'true', 'growth_habit': 'Tree'}
+#TEMP_PARAMS = {'duration': 'Perennial', 'palatable_browse_animal': 'Low', 'complete_data': 'true', 'growth_habit': 'Tree'}
 SEARCH_PARAMS = []
 
-"""
-shade_tolerance = ['Tolerant', 'Intermediate', 'Intolerant']
-bloom_period = [
-                'Spring', 'Early Spring', 'Mid Spring','Late Spring', 
-                'Summer', 'Early Summer', 'Mid Summer', 'Late Summer',
-                'Fall', 'Winter', 'Late Winter', 'Indeterminate'
-                ]
-temperature_minimum_deg_f = 'float'
-growth_habit = [
-                'Forb/herb', 'Graminoid', 'Lichenous',
-                'Nonvascular', 'Shrub', 'Subshrub', 'Tree', 'Vine'
-                ]
-mature_height = 'float'
-palatable_browse_animal = ['Low', 'Moderate', 'High']
-has_image = True
-native_status = ''
-"""
+CODE_DICT = {
+    'AK': 'Alaska', 
+    'CAN': 'Canada',
+    'GL': 'Greenland',
+    'HI': 'Hawaii',
+    'L48': 'Lower 48 States',
+    'NA': 'North America',
+    'NAV': 'Navassa Island',
+    'PB': 'Pacific Basin',
+    'PR': 'Puerto Rico',
+    'SPM': 'St. Pierre and Miquelon',
+    'VI': 'U.S. Virgin Islands'
+    }
 
 #Functions go here:
 def get_zone_from_zip(zipcode):
+    ''' Queries a database in SQL to find USDA Zone information given a 
+    specific zipcode.
+    
+    Parameters
+    ----------
+    Zipcode: str
+    
+    Returns
+    -------
+    USDAZone: str
+    '''
     conn = sqlite3.connect('FinalPlantDB.sqlite')
     cur = conn.cursor()
 
-    #TODO: CODE QUERY HERE
     query = f'''
             SELECT Zone
             FROM USDAZones
@@ -54,10 +60,20 @@ def get_zone_from_zip(zipcode):
     return results[0][0]
 
 def get_zone_from_low(low_min):
+    ''' Queries the LowMIn column in a database in SQL to find USDA Zone information given a 
+    specific temperature.
+    
+    Parameters
+    ----------
+    low_min: str
+    
+    Returns
+    -------
+    USDAZone: str
+    '''
     conn = sqlite3.connect('FinalPlantDB.sqlite')
     cur = conn.cursor()
 
-    #TODO: CODE QUERY HERE
     query = f'''
             SELECT Zone
             FROM USDAZones
@@ -170,7 +186,7 @@ def construct_unique_key(baseurl, params):
     
     Parameters
     ----------
-    baseurl: string
+    baseurl: str
         The URL for the API endpoint
     params: dict
         A dictionary of param:value pairs
@@ -193,8 +209,16 @@ def construct_unique_key(baseurl, params):
     return unique_key
 
 def get_wiki_image(image_info):
-    """TODO: FINISH DOCSTRING
-    """
+    ''' Returns a cleaned string containing an image URL pulled from the Wikipedia API.
+    
+    Parameters
+    ----------
+    image_info: str
+    
+    Returns
+    -------
+    image: str
+    '''
     image = str(image_info).split('{')
     image = image[5].split(' ')
     image = image[1].strip(",")
@@ -202,8 +226,18 @@ def get_wiki_image(image_info):
     return image
 
 def sort_trefle_json(trefle_results):
-    """TODO: FINISH DOCSTRING
-    """
+    ''' Takes a dictionary of API call results and sorts the dictionary values
+    into key,val pairs to be displayed to a user. Makes API calls to Trefle and 
+    Wikipedia as necessary. Returns a lst of plant dictionaries.
+    
+    Parameters
+    ----------
+    trefle_results: dict
+    
+    Returns
+    -------
+    plant_list: list, a list of dictionaries containing relevant plant information.
+    '''
     plant_list = []
     for result in trefle_results:
         try:
@@ -213,8 +247,8 @@ def sort_trefle_json(trefle_results):
             plant_link = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, new_endpoint)
             plant_dict['name'] = plant_link['common_name']
             plant_dict['sci_name'] = plant_link['scientific_name']
+
             image_endpoint = WIKIMEDIA_PARAMS
-        
             image_endpoint['titles'] = plant_dict['sci_name']
             try:
                 image_info = make_request_with_cache(WIKIMEDIA_BASEURL, api_key=None, params=image_endpoint)
@@ -226,15 +260,18 @@ def sort_trefle_json(trefle_results):
                     plant_dict['image'] = image_return
             except:
                 plant_dict['image'] = False
+
             plant_dict['duration'] = plant_link['duration']
-            
+
             if plant_link['main_species']['growth']['shade_tolerance'] == 'Tolerant':
                 plant_dict['shade'] = 'Full Shade'
             elif plant_link['main_species']['growth']['shade_tolerance'] == 'Intermediate':
                 plant_dict['shade'] = 'Part Sun/Shade'
             else:
                 plant_dict['shade'] = 'Full Sun'
+
             plant_dict['bloom_period'] = plant_link['main_species']['seed']['bloom_period']
+
             low_temp = (plant_link['main_species']['growth']['temperature_minimum']['deg_f'])
             try:
                 low_temp = 5 * round(low_temp/5)
@@ -249,6 +286,7 @@ def sort_trefle_json(trefle_results):
             except:
                 plant_dict['zone'] = 'Not Available'
             plant_dict['zone'] = f'{low_zone} - {max_zone}'
+
             growth_habit = plant_link['main_species']['specifications']['growth_habit']
             if growth_habit == 'Graminoid':
                 plant_dict['shape'] = 'Grass'
@@ -256,8 +294,8 @@ def sort_trefle_json(trefle_results):
                 plant_dict['shape'] = 'Plant'
             else:
                 plant_dict['shape'] = growth_habit
+
             plant_height = plant_link['main_species']['specifications']['mature_height']['ft']
-            
             try:
                 if plant_height < 1:
                     height = round(plant_height * 12)
@@ -267,14 +305,22 @@ def sort_trefle_json(trefle_results):
                     plant_dict['height'] = f'{height} ft.'
             except:
                 plant_dict['height'] = 'Unrecorded'
-            native_code = plant_link['main_species']['native_status']
-            #native_code = native_code.replace('(', ':')
-            #print(plant_dict['common_name'])
-            #print(type(native_code))
-            #native_code = native_code.split(')')
-            #print(native_code)
 
-            plant_dict['native'] = native_code
+            native_code = plant_link['main_species']['native_status']
+            if native_code != None:
+                native_dict = dict(item.split('(') for item in native_code.split(')') if item!='')
+                native_to = []
+                for key,value in native_dict.items():
+                    if value == 'N':
+                        native_to.append(CODE_DICT[key])
+                if native_to != []:
+                    native_to = ', '.join(native_to)
+                    plant_dict['native'] = native_to
+                else:
+                    plant_dict['native'] = 'Unavailable'                    
+            else:
+                plant_dict['native'] = 'Unavailable'
+
             if plant_link['main_species']['products']['palatable_browse_animal'] == 'Low':
                 plant_dict['deer'] = 'Yes'
             else:
@@ -295,28 +341,35 @@ def index():
 @app.route('/results', methods=['POST'])
 def results():
     params_dict = {'complete_data': 'true', 'duration': 'Perennial',}
+
     if request.form['zipcode'].isdigit() and len(request.form['zipcode']) >= 4:
         zipcode = request.form['zipcode']
         user_zone = get_zone_from_zip(zipcode)
+    elif request.form['zipcode'] is None:
+        user_zone = False       
     else:
-        user_zone = False
+        user_zone = 'None'
+
     if request.form['plant_type'] == 'None':
         pass
     else:
         params_dict['growth_habit'] = request.form['plant_type']
+
     if request.form['bloom_time'] == 'None':
         pass
     else:
         params_dict['bloom_period'] = request.form['bloom_time']
+
     if request.form['sun'] == 'None':
         pass
     else:
         params_dict['shade_tolerance'] = request.form['sun']
-    #params_dict['native_status'] = request.form['native']
+
     if request.form['deer'] == 'Low':
         params_dict['palatable_browse_animal'] = request.form['deer']
     else:
         pass
+
     results = make_request_with_cache(TREFLE_BASEURL, TREFLE_KEY, params_dict)
     if results == []:
         return render_template('no_results.html')
@@ -330,7 +383,7 @@ def results():
 if __name__=='__main__':
 
     app.run(debug=True)
-
+    """
     CACHE_DICT = open_cache()
     tempo_params = {
         "complete_data": "true", 
@@ -346,3 +399,4 @@ if __name__=='__main__':
                 print(item) #for debugging
 
     print(f'You have {result_count} plants to choose from!')
+    """
